@@ -2,27 +2,49 @@
 
 Turn happy customers into 5-star reviews. ReviewBoost helps local businesses grow their Google reviews with smart QR displays and AI-powered review management.
 
-This is a **static site**, recovered from the live Cloudflare Pages direct-upload deployment (`reviewboost`, production domain [reviewboost.pages.dev](https://reviewboost.pages.dev)). It was not previously on Git, so the published files are the source of truth.
+This is a full application: a React + TypeScript web app, an Express API, and a local SQLite database. The original single-file HTML prototype is kept in `prototype/index.html`.
 
-The homepage is a single ~345KB HTML app: inlined CSS, a React 18 UMD bundle from unpkg, and client-side views for the landing page, setup wizard, dashboard (iPad/TV displays), and SaaS admin.
+## Stack
+
+- **Web:** Vite, React 18, TypeScript, React Router
+- **API:** Express on port 3001
+- **Data:** SQLite via Node’s built-in `node:sqlite`
+- **AI replies:** server-side draft generator (rule-based today, swap-in ready for an LLM)
 
 ## Run locally
 
 ```bash
-npx serve .
+npm install
+npm run dev
 ```
 
-Then open the URL `serve` prints (usually http://localhost:3000).
+Then open http://localhost:5173
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | API + Vite dev server together |
+| `npm run lint` | ESLint |
+| `npm test` | Vitest (API + unit tests) |
+| `npm run build` | Typecheck and production client build |
+
+The API listens on `http://localhost:3001`. Vite proxies `/api` during development.
+
+## Product flows
+
+- `/` — marketing landing page
+- `/setup` — 4-step wizard; creates a real business in SQLite
+- `/display/:slug` — customer-facing review board + QR
+- `/r/:slug` — review gate (happy path can go to Google; Pro routes low stars to private feedback)
+- `/admin/:slug` — owner console (PIN `1234`)
+- `/saas` — platform admin (customers, MRR, ads, activity)
+
+Type `admin` anywhere outside an input to jump to the platform console.
 
 ## Layout
 
-- `index.html` — entire app (landing, setup, dashboard, saas-admin)
-
-The original Pages upload also included a `__MACOSX/._index.html` AppleDouble sidecar; that junk file was not recovered.
-
-## Cloudflare Pages
-
-- **Project name:** `reviewboost`
-- **Pages.dev:** https://reviewboost.pages.dev
-
-Direct Upload originally (not Git-connected). Re-deploy from this repo after connecting the project to GitHub if you want Git-based deploys.
+```
+src/           React app
+server/        Express API + SQLite
+prototype/     original HTML prototype
+data/          local SQLite file (created on first run)
+```
