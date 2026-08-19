@@ -11,6 +11,7 @@ Local-business review growth app. The HTML prototype lives in `prototype/`. The 
 - Standard commands are in `package.json` / `README.md`: `npm run lint`, `npm test`, `npm run build`.
 - Node’s `node:sqlite` module is experimental on Node 22; the API logs a warning and still works.
 - Marketing, setup, display, and SaaS admin UI come from `src/legacy/OriginalUI.jsx` (the recovered Cloudflare prototype). Do not restyle those screens to the thinner `src/styles.css` look.
+- The original display is live: it polls `/api/businesses/:slug`, QR codes go to `/r/:slug`, and PIN/plan/theme/location changes persist through the API. Do not reintroduce the fake 8-second review incrementer.
 - Production is a single Express process: `npm run build && npm start`. That is what Railway runs via `Dockerfile`.
 - On Railway, attach a volume at `/data`. The server writes SQLite to `$RAILWAY_VOLUME_MOUNT_PATH/reviewboost.db`. Do not mount a volume over `/app`.
 - Cloudflare Pages cannot run this app. Do not treat `reviewboost.pages.dev` as the live product.

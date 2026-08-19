@@ -31,13 +31,30 @@ describe("businessToConfig", () => {
           isPrimary: true,
         },
       ],
-      reviews: [],
+      reviews: [
+        {
+          id: 9,
+          locationId: 1,
+          author: "Casey Nguyen",
+          rating: 5,
+          text: "Outstanding visit!",
+          avatar: "C",
+          createdAt: new Date().toISOString(),
+          replied: false,
+          replyText: "",
+          aiDraft: "",
+        },
+      ],
       social: [{ platform: "instagram", handle: "@element", connected: true, followerCount: 10 }],
-      events: [],
+      events: [{ id: 1, businessId: 1, locationId: 1, type: "scan", label: "QR scan", platform: null, createdAt: new Date().toISOString() }],
       qrScans: 3,
       feedbackCount: 0,
     } as Business);
-    expect(config.businessName).toBe("Element Longevity");
+    expect(config.slug).toBe("element-longevity");
+    expect(config.plan).toBe("pro");
+    expect(config.reviews?.[0].name).toBe("Casey Nguyen");
+    expect(config.reviews?.[0].time).toBe("just now");
+    expect(config.events?.[0].type).toBe("scan");
     expect(config.displayMode).toBe("tv");
     expect(config.socialConnected.instagram).toBe(true);
   });

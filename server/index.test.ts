@@ -87,6 +87,11 @@ describe("ReviewBoost API", () => {
 
     const pin = await request(server).post(`/api/businesses/${created.body.slug}/pin/verify`).send({ pin: "1234" });
     expect(pin.body.ok).toBe(true);
+    await request(server).patch(`/api/businesses/${created.body.slug}`).send({ pin: "9876", theme: "dark" }).expect(200);
+    const newPin = await request(server).post(`/api/businesses/${created.body.slug}/pin/verify`).send({ pin: "9876" });
+    expect(newPin.body.ok).toBe(true);
+    const oldPin = await request(server).post(`/api/businesses/${created.body.slug}/pin/verify`).send({ pin: "1234" });
+    expect(oldPin.body.ok).toBe(false);
 
     const upgraded = await request(server).post(`/api/businesses/${created.body.slug}/upgrade`).send({ plan: "pro" });
     expect(upgraded.body.plan).toBe("pro");

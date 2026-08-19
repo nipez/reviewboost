@@ -7563,9 +7563,14 @@ function AdminDash({
 /* ── DASHBOARD (state controller)                                           ── */
 /* ══════════════════════════════════════════════════════════════════════════════ */
 function Dashboard({
-  config
+  config,
+  onPersistPlan,
+  onPersistTheme,
+  onPersistPin,
+  onPersistLocation,
+  onVerifyPin
 }) {
-  var [plan, setPlan] = useState("free");
+  var [plan, setPlan] = useState(config.plan || "free");
   var [showUpgrade, setShowUpgrade] = useState(false);
   var [upgradeTrigger, setUpgradeTrigger] = useState("");
   var [mode, setMode] = useState("customer");
@@ -7575,10 +7580,11 @@ function Dashboard({
   var [pinError, setPinError] = useState(false);
   var [theme, setTheme] = useState(config.theme || "light");
   var [reviewCount, setReviewCount] = useState(config.reviewCount);
-  var [totalGained, setTotalGained] = useState(0);
-  var [events, setEvents] = useState([]);
+  var [totalGained, setTotalGained] = useState(config.qrScans || 0);
+  var [events, setEvents] = useState(config.events || []);
   var [latestEvent, setLatestEvent] = useState(null);
-  var [locations, setLocations] = useState([{
+  var lastReviewId = useRef(null);
+  var [locations, setLocations] = useState(config.locations && config.locations.length ? config.locations : [{
     name: config.businessName,
     address: config.address || "",
     placeId: config.placeId,
@@ -7595,7 +7601,29 @@ function Dashboard({
     });
     return c;
   });
-  var isPro = plan === "pro";
+  useEffect(function () {
+    if (config.plan) setPlan(config.plan);
+    if (config.theme) setTheme(config.theme);
+    if (typeof config.reviewCount === "number") setReviewCount(config.reviewCount);
+    if (typeof config.qrScans === "number") setTotalGained(config.qrScans);
+    if (config.events) setEvents(config.events);
+    if (config.locations && config.locations.length) setLocations(config.locations);
+  }, [config.plan, config.theme, config.reviewCount, config.qrScans, config.events, config.locations]);
+  useEffect(function () {
+    var list = config.reviews || [];
+    if (!list.length) return;
+    var newest = list[0];
+    if (lastReviewId.current && lastReviewId.current !== newest.id) {
+      setLatestEvent({
+        id: newest.id,
+        type: "review",
+        label: "Google Reviews",
+        time: newest.time || "just now"
+      });
+    }
+    lastReviewId.current = newest.id;
+  }, [config.reviews]);
+  var isPro = plan === "pro" || plan === "hardware" || plan === "enterprise";
   var isPlus = plan === "plus" || isPro;
   var activeLoc = locations[activeLocationIdx] || locations[0];
   var activeBusinessName = activeLoc.name;
@@ -7607,81 +7635,13 @@ function Dashboard({
   var activeSocial = isPro ? SOCIALS.filter(function (p) {
     return config.socialConnected[p.id];
   }) : [];
-  var filteredReviews = effectiveMinStars > 0 ? SAMPLE_REVIEWS.filter(function (r) {
+  var sourceReviews = config.reviews && config.reviews.length ? config.reviews : SAMPLE_REVIEWS;
+  var filteredReviews = effectiveMinStars > 0 ? sourceReviews.filter(function (r) {
     return r.rating >= effectiveMinStars;
-  }) : SAMPLE_REVIEWS;
-  var qrUrl = "https://search.google.com/local/writereview?placeid=" + activePlaceId;
+  }) : sourceReviews;
+  var qrUrl = config.slug ? window.location.origin + "/r/" + config.slug : "https://search.google.com/local/writereview?placeid=" + activePlaceId;
   var followUrl = "https://reviewboost.com/follow/" + activeBusinessName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   var hasFollow = activeSocial.length > 0;
-  useEffect(function () {
-    var iv = setInterval(function () {
-      setReviewCount(function (c) {
-        return c + 1;
-      });
-      setTotalGained(function (g) {
-        return g + 1;
-      });
-      var ev = {
-        id: Date.now(),
-        type: "review",
-        label: "Google Reviews",
-        time: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit"
-        })
-      };
-      setLatestEvent(ev);
-      setEvents(function (p) {
-        return [ev].concat(p.slice(0, 19));
-      });
-    }, 8000 + Math.random() * 4000);
-    return function () {
-      clearInterval(iv);
-    };
-  }, []);
-  useEffect(function () {
-    var socials = SOCIALS.filter(function (p) {
-      return config.socialConnected[p.id];
-    });
-    if (!socials.length) return;
-    var iv = setInterval(function () {
-      var pick = socials[Math.floor(Math.random() * socials.length)];
-      // Sometimes do a burst of rapid increments for visual effect
-      var burst = Math.random() < 0.3 ? Math.floor(Math.random() * 4) + 2 : 1;
-      var count = 0;
-      function doIncrement() {
-        setSocialCounts(function (p) {
-          var n = Object.assign({}, p);
-          n[pick.id] = (n[pick.id] || 0) + 1;
-          return n;
-        });
-        count++;
-        if (count < burst) {
-          setTimeout(doIncrement, 350);
-        }
-      }
-      doIncrement();
-      var ev = {
-        id: Date.now(),
-        type: "social",
-        platform: pick.id,
-        label: pick.label,
-        time: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit"
-        })
-      };
-      setLatestEvent(ev);
-      setEvents(function (p) {
-        return [ev].concat(p.slice(0, 19));
-      });
-    }, 2500 + Math.random() * 2000);
-    return function () {
-      clearInterval(iv);
-    };
-  }, []);
   function triggerUpgrade(reason) {
     setUpgradeTrigger(reason);
     setShowUpgrade(true);
@@ -7691,8 +7651,10 @@ function Dashboard({
       setShowUpgrade(false);
     },
     onUpgrade: function (selectedPlan) {
-      setPlan(selectedPlan === "hardware" ? "pro" : selectedPlan || "pro");
+      var next = selectedPlan || "pro";
+      setPlan(next);
       setShowUpgrade(false);
+      if (onPersistPlan) onPersistPlan(next);
     },
     trigger: upgradeTrigger
   }) : null;
@@ -7716,7 +7678,9 @@ function Dashboard({
       theme: effectiveTheme,
       onToggleTheme: function () {
         setTheme(function (t) {
-          return t === "dark" ? "light" : "dark";
+          var next = t === "dark" ? "light" : "dark";
+          if (onPersistTheme) onPersistTheme(next);
+          return next;
         });
       },
       onAdmin: function () {
@@ -7839,14 +7803,25 @@ function Dashboard({
               setPinInput(newPin);
               setPinError(false);
               if (newPin.length === 4) {
-                if (newPin === pin) {
+                function accept() {
                   setShowPinEntry(false);
                   setMode("admin");
-                } else {
+                }
+                function reject() {
                   setPinError(true);
                   setTimeout(function () {
                     setPinInput("");
                   }, 600);
+                }
+                if (onVerifyPin) {
+                  onVerifyPin(newPin).then(function (ok) {
+                    if (ok) accept();
+                    else reject();
+                  }).catch(reject);
+                } else if (newPin === pin) {
+                  accept();
+                } else {
+                  reject();
                 }
               }
             }
@@ -7892,7 +7867,9 @@ function Dashboard({
     theme: theme,
     onThemeToggle: function () {
       setTheme(function (t) {
-        return t === "dark" ? "light" : "dark";
+        var next = t === "dark" ? "light" : "dark";
+        if (onPersistTheme) onPersistTheme(next);
+        return next;
       });
     },
     onCustomer: function () {
@@ -7918,11 +7895,13 @@ function Dashboard({
           return prev.concat([locData]);
         });
         setActiveLocationIdx(locations.length);
+        if (onPersistLocation) onPersistLocation(locData);
       }
     },
     adminPin: pin,
     onChangePin: function (newPin) {
       setPin(newPin);
+      if (onPersistPin) onPersistPin(newPin);
     },
     socialConnected: config.socialConnected,
     onToggleSocial: function (id) {
