@@ -10,6 +10,7 @@ Local-business review growth app. The HTML prototype lives in `prototype/`. The 
 - Default owner PIN is `1234`. Seeded directory businesses include **Element Longevity**.
 - Standard commands are in `package.json` / `README.md`: `npm run lint`, `npm test`, `npm run build`.
 - Node’s `node:sqlite` module is experimental on Node 22; the API logs a warning and still works.
+- Marketing, setup, display, and SaaS admin UI come from `src/legacy/OriginalUI.jsx` (the recovered Cloudflare prototype). Do not restyle those screens to the thinner `src/styles.css` look.
 - Production is a single Express process: `npm run build && npm start`. That is what Railway runs via `Dockerfile`.
 - On Railway, attach a volume at `/data`. The server writes SQLite to `$RAILWAY_VOLUME_MOUNT_PATH/reviewboost.db`. Do not mount a volume over `/app`.
 - Cloudflare Pages cannot run this app. Do not treat `reviewboost.pages.dev` as the live product.
