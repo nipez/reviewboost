@@ -26,8 +26,26 @@ Then open http://localhost:5173
 | `npm run lint` | ESLint |
 | `npm test` | Vitest (API + unit tests) |
 | `npm run build` | Typecheck and production client build |
+| `npm start` | Serve the API and the built frontend (after `npm run build`) |
 
 The API listens on `http://localhost:3001`. Vite proxies `/api` during development.
+
+## Deploy on Railway
+
+This app is one process: Express serves `/api` and the Vite `dist/` frontend. SQLite needs a persistent volume.
+
+1. Create a Railway project from this GitHub repo (`nipez/reviewboost`).
+2. Railway uses `Dockerfile` + `railway.toml`. It should detect `PORT` automatically.
+3. Add a volume and mount it at `/data` (not `/app`). The app writes `reviewboost.db` to `RAILWAY_VOLUME_MOUNT_PATH`.
+4. Optional service variable: `REVIEWBOOST_DB=/data/reviewboost.db`.
+5. Generate a public domain on the service. The health check is `GET /api/health`.
+
+```bash
+npm run build
+PORT=3000 npm start
+```
+
+Cloudflare Pages is the wrong host for this stack (no Node server, no SQLite). Leave Pages disconnected or pointed at the old prototype only.
 
 ## Product flows
 

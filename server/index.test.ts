@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import request from "supertest";
-import { createApp } from "./index.ts";
+import { createApp, resolveDbPath } from "./index.ts";
 
 function tempDb() {
   return path.join(os.tmpdir(), `reviewboost-test-${Date.now()}-${Math.random().toString(16).slice(2)}.db`);
@@ -30,6 +30,17 @@ describe("ReviewBoost API", () => {
     files.push(dbPath);
     return createApp(dbPath).app;
   }
+
+  it("stores SQLite on the Railway volume when mounted", () => {
+    const prev = process.env.RAILWAY_VOLUME_MOUNT_PATH;
+    const prevDb = process.env.REVIEWBOOST_DB;
+    delete process.env.REVIEWBOOST_DB;
+    process.env.RAILWAY_VOLUME_MOUNT_PATH = "/data";
+    expect(resolveDbPath()).toBe("/data/reviewboost.db");
+    if (prev) process.env.RAILWAY_VOLUME_MOUNT_PATH = prev;
+    else delete process.env.RAILWAY_VOLUME_MOUNT_PATH;
+    if (prevDb) process.env.REVIEWBOOST_DB = prevDb;
+  });
 
   it("reports health", async () => {
     const res = await request(app()).get("/api/health");

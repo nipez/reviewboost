@@ -1,12 +1,22 @@
 import express from "express";
 import cors from "cors";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { openDb, seedIfEmpty } from "./db.ts";
 import type { CreateBusinessInput, PlanId } from "../src/types.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const defaultDbPath = process.env.REVIEWBOOST_DB ?? path.join(__dirname, "..", "data", "reviewboost.db");
+
+export function resolveDbPath(): string {
+  if (process.env.REVIEWBOOST_DB) return process.env.REVIEWBOOST_DB;
+  if (process.env.RAILWAY_VOLUME_MOUNT_PATH) {
+    return path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, "reviewboost.db");
+  }
+  return path.join(__dirname, "..", "data", "reviewboost.db");
+}
+
+const defaultDbPath = resolveDbPath();
 
 export function createApp(dbPath = defaultDbPath) {
   const db = openDb(dbPath);
@@ -196,6 +206,22 @@ export function createApp(dbPath = defaultDbPath) {
     res.json(db.saasActivity());
   });
 
+  const distDir = path.join(__dirname, "..", "dist");
+  if (fs.existsSync(path.join(distDir, "index.html"))) {
+    app.use(express.static(distDir));
+    app.use((req, res, next) => {
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        next();
+        return;
+      }
+      if (req.path.startsWith("/api")) {
+        next();
+        return;
+      }
+      res.sendFile(path.join(distDir, "index.html"));
+    });
+  }
+
   return { app, db };
 }
 
@@ -206,8 +232,10 @@ function publicBusiness(business: ReturnType<ReturnType<typeof openDb>["getBusin
 
 if (!process.env.VITEST) {
   const port = Number(process.env.PORT ?? 3001);
-  const { app } = createApp();
+  const dbPath = resolveDbPath();
+  const { app } = createApp(dbPath);
   app.listen(port, "0.0.0.0", () => {
-    console.log(`ReviewBoost API listening on http://localhost:${port}`);
+    console.log(`ReviewBoost listening on http://0.0.0.0:${port}`);
+    console.log(`SQLite: ${dbPath}`);
   });
 }
